@@ -2,6 +2,7 @@ import { FinnhubProvider } from './finnhub';
 import type { MarketDataProvider } from './types';
 
 export type { Candle, MarketDataProvider, Quote, Resolution, SymbolSearchResult } from './types';
+export { AuthError, NoDataError, NotImplementedError, RateLimitError } from './errors';
 
 let instance: MarketDataProvider | null = null;
 

@@ -1,9 +1,25 @@
 import clsx from 'clsx';
-import type { SymbolSeed } from '@/data/types';
+import { AlertCircle } from 'lucide-react';
 import { useChartModalStore } from '@/store/chart-modal-store';
 
+/**
+ * Pure-presentational row contract used by every tab. Pages are responsible
+ * for building this from either live hooks (`useQuotes`) or mock data.
+ */
+export interface QuoteRow {
+  symbol: string;
+  name: string;
+  subtitle?: string;
+  price?: number;
+  change?: number;
+  changePct?: number;
+  marketCap?: number;
+  loading?: boolean;
+  error?: boolean;
+}
+
 interface Props {
-  rows: SymbolSeed[];
+  rows: QuoteRow[];
   showMarketCap?: boolean;
 }
 
@@ -39,40 +55,66 @@ export function QuoteTable({ rows, showMarketCap = false }: Props) {
         </thead>
         <tbody className="divide-y divide-slate-800">
           {rows.map((row) => {
-            // Deterministic mock values derived from the symbol hash so the
-            // list doesn't jitter on every render. Replaced by real quotes in
-            // Sprint 1 / Sprint 2.
-            const seed = hash(row.symbol);
-            const price = 50 + (seed % 500) + (seed % 97) / 100;
-            const changePct = ((seed % 700) - 350) / 100;
-            const change = (price * changePct) / 100;
-            const up = change >= 0;
+            const up = (row.changePct ?? 0) >= 0;
+            const colorClass = row.error
+              ? 'text-slate-500'
+              : up
+                ? 'text-up'
+                : 'text-down';
 
             return (
               <tr
                 key={row.symbol}
                 className="table-row-hover"
-                onClick={() => openChart({ symbol: row.symbol, name: row.name })}
+                onClick={() =>
+                  openChart({ symbol: row.symbol, name: row.name })
+                }
               >
-                <td className="px-4 py-3 font-mono font-semibold text-white">{row.symbol}</td>
-                <td className="px-4 py-3 text-slate-300">{row.name}</td>
-                <td className="px-4 py-3 text-right font-mono text-slate-100">{fmtPrice(price)}</td>
-                <td
-                  className={clsx(
-                    'px-4 py-3 text-right font-mono',
-                    up ? 'text-up' : 'text-down',
-                  )}
-                >
-                  {up ? '+' : ''}
-                  {fmtPrice(change)}
+                <td className="px-4 py-3 font-mono font-semibold text-white">
+                  {row.symbol}
                 </td>
-                <td
-                  className={clsx(
-                    'px-4 py-3 text-right font-mono',
-                    up ? 'text-up' : 'text-down',
+                <td className="px-4 py-3 text-slate-300">
+                  <div>{row.name}</div>
+                  {row.subtitle && (
+                    <div className="text-xs text-slate-500">{row.subtitle}</div>
                   )}
-                >
-                  {fmtPct(changePct)}
+                </td>
+                <td className="px-4 py-3 text-right font-mono text-slate-100">
+                  {row.error ? (
+                    <span
+                      className="inline-flex items-center gap-1 text-slate-500"
+                      title="Failed to load"
+                    >
+                      <AlertCircle className="h-3.5 w-3.5" />
+                      error
+                    </span>
+                  ) : row.price === undefined ? (
+                    <Skeleton className="ml-auto h-4 w-16" />
+                  ) : (
+                    fmtPrice(row.price)
+                  )}
+                </td>
+                <td className={clsx('px-4 py-3 text-right font-mono', colorClass)}>
+                  {row.change === undefined ? (
+                    row.error ? (
+                      '—'
+                    ) : (
+                      <Skeleton className="ml-auto h-4 w-14" />
+                    )
+                  ) : (
+                    `${up ? '+' : ''}${fmtPrice(row.change)}`
+                  )}
+                </td>
+                <td className={clsx('px-4 py-3 text-right font-mono', colorClass)}>
+                  {row.changePct === undefined ? (
+                    row.error ? (
+                      '—'
+                    ) : (
+                      <Skeleton className="ml-auto h-4 w-14" />
+                    )
+                  ) : (
+                    fmtPct(row.changePct)
+                  )}
                 </td>
                 {showMarketCap && (
                   <td className="px-4 py-3 text-right font-mono text-slate-300">
@@ -88,10 +130,13 @@ export function QuoteTable({ rows, showMarketCap = false }: Props) {
   );
 }
 
-function hash(s: string): number {
-  let h = 0;
-  for (let i = 0; i < s.length; i++) {
-    h = (h * 31 + s.charCodeAt(i)) | 0;
-  }
-  return Math.abs(h);
+function Skeleton({ className }: { className?: string }) {
+  return (
+    <span
+      className={clsx(
+        'inline-block animate-pulse rounded bg-slate-700/60 align-middle',
+        className,
+      )}
+    />
+  );
 }

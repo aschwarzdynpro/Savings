@@ -7,4 +7,9 @@ export interface SymbolSeed {
   marketCap?: number;
   /** Optional: ISO country code / exchange hint. */
   exchange?: string;
+  /**
+   * Optional raw index symbol this row proxies for (e.g. ETF `SPY` tracks
+   * `^GSPC`). Display-only; not used for API requests.
+   */
+  proxyFor?: string;
 }

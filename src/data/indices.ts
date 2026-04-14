@@ -1,28 +1,29 @@
 import type { SymbolSeed } from './types';
 
 /**
- * Curated list of major world indices.
+ * Major world indices tracked via US-listed ETF proxies.
  *
- * NOTE: Finnhub's free tier does not cover every raw index symbol.
- * In Sprint 1 we may need to swap some of these for ETF proxies
- * (e.g. `SPY` for the S&P 500). Keep the `symbol` column in sync
- * with what the provider actually returns.
+ * Finnhub's free tier does not reliably serve raw index symbols
+ * (`^GSPC`, `^GDAXI`, …) — `/quote` often returns an empty payload for
+ * them. The ETF proxies below trade in USD on NYSE/NASDAQ and are covered
+ * by the free tier. The `proxyFor` field preserves the index the ETF
+ * tracks, for display purposes.
  */
 export const INDICES: SymbolSeed[] = [
-  { symbol: '^GSPC', name: 'S&P 500', exchange: 'US' },
-  { symbol: '^DJI', name: 'Dow Jones Industrial Average', exchange: 'US' },
-  { symbol: '^IXIC', name: 'NASDAQ Composite', exchange: 'US' },
-  { symbol: '^RUT', name: 'Russell 2000', exchange: 'US' },
-  { symbol: '^VIX', name: 'CBOE Volatility Index', exchange: 'US' },
-  { symbol: '^GDAXI', name: 'DAX 40', exchange: 'DE' },
-  { symbol: '^FTSE', name: 'FTSE 100', exchange: 'UK' },
-  { symbol: '^FCHI', name: 'CAC 40', exchange: 'FR' },
-  { symbol: '^STOXX50E', name: 'Euro Stoxx 50', exchange: 'EU' },
-  { symbol: '^N225', name: 'Nikkei 225', exchange: 'JP' },
-  { symbol: '^HSI', name: 'Hang Seng', exchange: 'HK' },
-  { symbol: '000001.SS', name: 'Shanghai Composite', exchange: 'CN' },
-  { symbol: '^AXJO', name: 'S&P/ASX 200', exchange: 'AU' },
-  { symbol: '^BSESN', name: 'BSE Sensex', exchange: 'IN' },
-  { symbol: '^BVSP', name: 'Bovespa', exchange: 'BR' },
-  { symbol: '^GSPTSE', name: 'S&P/TSX Composite', exchange: 'CA' },
+  { symbol: 'SPY', name: 'S&P 500', proxyFor: '^GSPC', exchange: 'US' },
+  { symbol: 'DIA', name: 'Dow Jones Industrial', proxyFor: '^DJI', exchange: 'US' },
+  { symbol: 'QQQ', name: 'NASDAQ 100', proxyFor: '^NDX', exchange: 'US' },
+  { symbol: 'IWM', name: 'Russell 2000', proxyFor: '^RUT', exchange: 'US' },
+  { symbol: 'VXX', name: 'VIX Short-Term (VXX)', proxyFor: '^VIX', exchange: 'US' },
+  { symbol: 'EWG', name: 'Germany (DAX proxy)', proxyFor: '^GDAXI', exchange: 'DE' },
+  { symbol: 'EWU', name: 'United Kingdom (FTSE proxy)', proxyFor: '^FTSE', exchange: 'UK' },
+  { symbol: 'EWQ', name: 'France (CAC proxy)', proxyFor: '^FCHI', exchange: 'FR' },
+  { symbol: 'FEZ', name: 'Euro Stoxx 50', proxyFor: '^STOXX50E', exchange: 'EU' },
+  { symbol: 'EWJ', name: 'Japan (Nikkei proxy)', proxyFor: '^N225', exchange: 'JP' },
+  { symbol: 'EWH', name: 'Hong Kong (Hang Seng proxy)', proxyFor: '^HSI', exchange: 'HK' },
+  { symbol: 'MCHI', name: 'China (CSI 300 proxy)', proxyFor: '000300.SS', exchange: 'CN' },
+  { symbol: 'EWA', name: 'Australia (ASX proxy)', proxyFor: '^AXJO', exchange: 'AU' },
+  { symbol: 'INDA', name: 'India (Nifty proxy)', proxyFor: '^NSEI', exchange: 'IN' },
+  { symbol: 'EWZ', name: 'Brazil (Bovespa proxy)', proxyFor: '^BVSP', exchange: 'BR' },
+  { symbol: 'EWC', name: 'Canada (TSX proxy)', proxyFor: '^GSPTSE', exchange: 'CA' },
 ];

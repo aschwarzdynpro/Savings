@@ -41,6 +41,21 @@ npm run build
 npm run preview
 ```
 
+## Running in GitHub Codespaces (iPad-friendly)
+
+The repo ships a `.devcontainer/devcontainer.json` that pre-installs Node
+20, runs `npm install`, forwards port 5173 and configures the editor —
+ideal for developing directly from Safari on an iPad.
+
+1. On github.com → green **Code** button → tab **Codespaces** →
+   **Create codespace on this branch**.
+2. Open a terminal and either create `.env.local` with your Finnhub key
+   *or* set `VITE_FINNHUB_API_KEY` as a **Codespace secret** in
+   **Settings → Codespaces → Repository secrets** (Vite reads it
+   automatically).
+3. `npm run dev` — Codespaces prompts you to open the forwarded Vite
+   URL in the browser.
+
 ## Deployment (GitHub Pages)
 
 Deployment is automated via GitHub Actions

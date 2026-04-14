@@ -37,25 +37,29 @@ tabs and a chart modal openable from any row. Mock data only.
 
 ---
 
-## Sprint 1 — Live Indices (Tab 2)
+## Sprint 1 — Live Indices (Tab 2) ✅
 
 **Goal**: Tab 2 shows real-time quotes for the major world indices, and
-clicking a row opens a real candlestick chart.
+clicking a row opens a candlestick chart.
 
-- [ ] Implement `FinnhubProvider.getQuote(symbol)` with real HTTP
-- [ ] Implement `FinnhubProvider.getCandles(symbol, resolution, from, to)`
-- [ ] React Query hooks: `useQuote`, `useQuotes(symbols[])`, `useCandles`
-- [ ] Polling interval: 10s while tab visible, pause on hidden
-- [ ] Replace mock data on Indices page with live hook
-- [ ] Price change color coding (green / red / neutral)
-- [ ] Chart modal uses `useCandles` with daily resolution
-- [ ] Loading skeletons + error states
-- [ ] Handle Finnhub rate-limit errors gracefully (exponential backoff)
-- [ ] Research index coverage in Finnhub free tier; document fallbacks
-  (some indices need ETF proxies, e.g. `^GSPC` → `SPY`)
+- [x] Implement `FinnhubProvider.getQuote(symbol)` with real HTTP
+- [x] Implement `FinnhubProvider.getCandles(symbol, resolution, from, to)`
+      (free tier blocks `/stock/candle` → graceful fallback to demo series)
+- [x] React Query hooks: `useQuote`, `useQuotes(symbols[])`, `useCandles`
+- [x] Polling interval: 10s, paused when the window is in the background
+- [x] Replace mock data on Indices page with live hook
+- [x] Price change color coding (green / red / neutral)
+- [x] Chart modal uses `useCandles` (daily resolution) with fallback
+- [x] Loading skeletons + error states
+- [x] Handle Finnhub `429` / `401` / `403` explicitly via typed errors
+- [x] Research index coverage — Finnhub free tier doesn't serve raw index
+      symbols, so indices are fetched via US-listed ETF proxies
+      (`SPY`, `DIA`, `QQQ`, `EWG`, …). See `MEMORY.md` §4 for the mapping.
+- [x] `ApiKeyBanner` prompts the user when `VITE_FINNHUB_API_KEY` is unset.
 
-**DoD**: Indices tab updates every 10s with real values; chart loads real
-history; no console errors when API key is set.
+**DoD**: Indices tab updates every 10s with real values; chart modal shows
+live quote header + daily chart (real when available, demo fallback when
+the endpoint is premium-gated).
 
 ---
 

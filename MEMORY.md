@@ -64,19 +64,51 @@ Repository: `aschwarzdynpro/savings` · Dev branch: `claude/trading-dashboard-ap
 ### Finnhub
 
 - Docs: https://finnhub.io/docs/api
-- Auth: API key as `?token=…` query param (also supports header)
-- Free tier: 60 calls/min. No WS on free tier for some asset classes — to
-  be verified in Sprint 1.
+- Auth: API key as `?token=…` query param
+- Free tier: 60 calls/min
 - Env var: `VITE_FINNHUB_API_KEY` (exposed to client at build time)
-- Endpoints we will use:
-  - `GET /quote?symbol=…` — current price, day change, open, high, low, pc
-  - `GET /search?q=…` — symbol lookup
-  - `GET /stock/candle?symbol=…&resolution=…&from=…&to=…` — OHLC history
-- **Known quirks to watch for**:
-  - Index symbols differ across providers (`^GSPC` vs `SPX` vs ETF proxy
-    `SPY`). Maintain a mapping table in `src/data/indices.ts`.
-  - Some endpoints return 403 on free tier — code must degrade gracefully.
-  - Rate-limit response is `429`; implement exponential backoff.
+- Adapter: `src/services/market-data/finnhub.ts`
+- Typed errors (throw from the adapter, caught by hooks/UI):
+  `RateLimitError`, `AuthError`, `NoDataError`
+- **Endpoint coverage (verified Sprint 1)**:
+  - `GET /quote?symbol=…`          ✅ US stocks + ETFs
+  - `GET /search?q=…`              ✅ (wired in Sprint 3)
+  - `GET /stock/candle?…`          ❌ **premium only** — returns `403`.
+    UI falls back to a deterministic demo series with a visible
+    "fallback" status label. Revisit in Sprint 2 via a second provider
+    (Twelve Data or Polygon) if real historical candles are required.
+- **Index symbols (Sprint 1 decision)**: Finnhub free tier does not serve
+  raw index symbols like `^GSPC` / `^GDAXI` — `/quote` returns all zeros.
+  We fetch indices via US-listed **ETF proxies** instead. The proxy →
+  index mapping lives in `src/data/indices.ts` (field `proxyFor`):
+
+  | Display                | Fetched (ETF) | Tracks       |
+  | ---------------------- | ------------- | ------------ |
+  | S&P 500                | `SPY`         | `^GSPC`      |
+  | Dow Jones Industrial   | `DIA`         | `^DJI`       |
+  | NASDAQ 100             | `QQQ`         | `^NDX`       |
+  | Russell 2000           | `IWM`         | `^RUT`       |
+  | VIX Short-Term (VXX)   | `VXX`         | `^VIX`       |
+  | Germany (DAX proxy)    | `EWG`         | `^GDAXI`     |
+  | UK (FTSE proxy)        | `EWU`         | `^FTSE`      |
+  | France (CAC proxy)     | `EWQ`         | `^FCHI`      |
+  | Euro Stoxx 50          | `FEZ`         | `^STOXX50E`  |
+  | Japan (Nikkei proxy)   | `EWJ`         | `^N225`      |
+  | Hong Kong (HSI proxy)  | `EWH`         | `^HSI`       |
+  | China (CSI300 proxy)   | `MCHI`        | `000300.SS`  |
+  | Australia (ASX proxy)  | `EWA`         | `^AXJO`      |
+  | India (Nifty proxy)    | `INDA`        | `^NSEI`      |
+  | Brazil (Bovespa proxy) | `EWZ`         | `^BVSP`      |
+  | Canada (TSX proxy)     | `EWC`         | `^GSPTSE`    |
+
+  The ETF price deviates slightly from the underlying index level but
+  tracks it 1:1 in percent. For traders the change % is what matters.
+- **Rate-limit strategy**: `429` → typed error, React Query `retry: 1`.
+  No exponential backoff yet (good enough at 10 s polling). Upgrade when
+  Top 50 goes live in Sprint 2.
+- **Polling**: `refetchInterval: 10_000`, `refetchIntervalInBackground:
+  false` — when the tab is hidden, React Query pauses polling
+  automatically, which keeps us well under the 60 req/min budget.
 
 ## 5. Conventions
 
@@ -113,22 +145,26 @@ npm run preview                   # serve dist/ locally
 
 ## 7. Sprint status
 
-- **Sprint 0 — Foundation**: ✅ done (this session)
-- **Sprint 1 — Live Indices**: ⏭ next
-- **Sprint 2 — Live Top 50**: pending
+- **Sprint 0 — Foundation**: ✅ done
+- **Sprint 1 — Live Indices**: ✅ done
+- **Sprint 2 — Live Top 50**: ⏭ next
 - **Sprint 3 — Global Search + Detail**: pending
 - **Sprint 4 — Configurable Dashboard**: pending
 - **Sprint 5+ — Expansion Backlog**: see `PLAN.md`
 
 ## 8. Known issues / TODOs
 
-- Finnhub free tier does not cover every index directly — we may need ETF
-  proxies for DAX, Nikkei, etc. Verify in Sprint 1.
-- Market-cap data for Top 50 is not in the Finnhub `/quote` endpoint —
-  either use `/stock/profile2` or maintain a curated static list until a
-  proper source is added.
+- `/stock/candle` is premium on the Finnhub free tier → chart modal falls
+  back to deterministic demo data with a visible "fallback" label. Sprint
+  2 candidates for real candles: Twelve Data (800 req/day free), Polygon
+  basic, Yahoo Finance via CORS proxy.
+- Market-cap data for Top 50 is not in `/quote` — use `/stock/profile2`
+  or keep the curated static list.
+- Top 50 still renders mock data; 60 parallel live quotes would blow the
+  free-tier budget. Sprint 2 will add a throttled polling scheduler.
 - No tests yet. Consider Vitest + React Testing Library starting Sprint 2.
-- No error boundary yet — add in Sprint 1 together with loading skeletons.
+- No global error boundary — React Query handles per-query errors
+  inline; good enough until we ship portfolio / alerts features.
 
 ## 9. Glossary (for future context)
 

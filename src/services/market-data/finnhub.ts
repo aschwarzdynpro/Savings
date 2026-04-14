@@ -5,15 +5,46 @@ import type {
   Resolution,
   SymbolSearchResult,
 } from './types';
+import { AuthError, NoDataError, RateLimitError } from './errors';
+
+interface FinnhubQuote {
+  c: number; // current price
+  d: number | null; // change
+  dp: number | null; // change percent
+  h: number; // day high
+  l: number; // day low
+  o: number; // day open
+  pc: number; // previous close
+  t: number; // timestamp (unix seconds)
+}
+
+interface FinnhubCandles {
+  s: 'ok' | 'no_data';
+  c?: number[];
+  h?: number[];
+  l?: number[];
+  o?: number[];
+  t?: number[];
+  v?: number[];
+}
+
+interface FinnhubSearchResult {
+  result: Array<{
+    symbol: string;
+    description: string;
+    displaySymbol?: string;
+    type?: string;
+  }>;
+}
 
 /**
- * Finnhub adapter.
+ * Finnhub adapter — https://finnhub.io/docs/api
  *
- * Sprint 0: All methods throw `NotImplementedError`. Sprint 1 wires the
- * real HTTP calls. We ship the stub so the rest of the app can already
- * depend on a typed provider instance.
- *
- * Docs: https://finnhub.io/docs/api
+ * Free-tier notes (verified 2026-Q2):
+ *   - `/quote`         ✅ US stocks & ETFs (use ETF proxies for indices)
+ *   - `/search`        ✅
+ *   - `/stock/candle`  ❌ premium — will throw `AuthError`; callers should
+ *                       fall back to a demo series or a different provider.
  */
 export class FinnhubProvider implements MarketDataProvider {
   readonly name = 'finnhub';
@@ -22,45 +53,101 @@ export class FinnhubProvider implements MarketDataProvider {
 
   constructor(private readonly apiKey: string) {}
 
-  async getQuote(_symbol: string): Promise<Quote> {
-    // TODO(sprint-1): GET /quote?symbol=…&token=…
-    // Map { c, d, dp, h, l, o, pc, t } into our Quote shape.
-    throw new NotImplementedError('FinnhubProvider.getQuote');
+  async getQuote(symbol: string): Promise<Quote> {
+    const data = await this.fetchJson<FinnhubQuote>('/quote', { symbol });
+
+    // Finnhub returns zeros when the symbol is unknown / unsupported.
+    if (data.c === 0 && data.pc === 0 && data.h === 0 && data.l === 0) {
+      throw new NoDataError(`No quote data for ${symbol}`);
+    }
+
+    return {
+      symbol,
+      price: data.c,
+      change: data.d ?? 0,
+      changePct: data.dp ?? 0,
+      high: data.h,
+      low: data.l,
+      open: data.o,
+      previousClose: data.pc,
+      timestamp: data.t,
+    };
   }
 
   async getCandles(
-    _symbol: string,
-    _resolution: Resolution,
-    _from: number,
-    _to: number,
+    symbol: string,
+    resolution: Resolution,
+    from: number,
+    to: number,
   ): Promise<Candle[]> {
-    // TODO(sprint-1): GET /stock/candle?symbol=…&resolution=…&from=…&to=…&token=…
-    // Finnhub returns column-oriented arrays (c/h/l/o/t/v) — zip them.
-    throw new NotImplementedError('FinnhubProvider.getCandles');
+    const data = await this.fetchJson<FinnhubCandles>('/stock/candle', {
+      symbol,
+      resolution,
+      from,
+      to,
+    });
+
+    if (data.s !== 'ok' || !data.t || !data.c) {
+      throw new NoDataError(`No candles for ${symbol}`);
+    }
+
+    const candles: Candle[] = [];
+    for (let i = 0; i < data.t.length; i++) {
+      candles.push({
+        time: data.t[i],
+        open: data.o![i],
+        high: data.h![i],
+        low: data.l![i],
+        close: data.c[i],
+        volume: data.v?.[i],
+      });
+    }
+    return candles;
   }
 
-  async searchSymbols(_query: string): Promise<SymbolSearchResult[]> {
-    // TODO(sprint-3): GET /search?q=…&token=…
-    throw new NotImplementedError('FinnhubProvider.searchSymbols');
+  async searchSymbols(query: string): Promise<SymbolSearchResult[]> {
+    const data = await this.fetchJson<FinnhubSearchResult>('/search', { q: query });
+    return (data.result ?? []).map((r) => ({
+      symbol: r.symbol,
+      description: r.description,
+      displaySymbol: r.displaySymbol,
+      type: r.type,
+    }));
   }
 
-  /**
-   * Build a fully-qualified Finnhub URL including the token query param.
-   * Used by Sprint 1 methods; kept on the class so the adapter is coherent.
-   */
-  protected buildUrl(path: string, params: Record<string, string | number>): string {
+  // ──────────────────────────── internals ───────────────────────────────
+
+  private async fetchJson<T>(
+    path: string,
+    params: Record<string, string | number>,
+  ): Promise<T> {
+    if (!this.apiKey) {
+      throw new AuthError('Missing VITE_FINNHUB_API_KEY');
+    }
+
+    const url = this.buildUrl(path, params);
+    const res = await fetch(url);
+
+    if (res.status === 429) {
+      throw new RateLimitError();
+    }
+    if (res.status === 401 || res.status === 403) {
+      throw new AuthError(
+        `Finnhub ${res.status} on ${path} — endpoint may require a paid plan.`,
+      );
+    }
+    if (!res.ok) {
+      throw new Error(`Finnhub ${res.status} on ${path}`);
+    }
+    return (await res.json()) as T;
+  }
+
+  private buildUrl(path: string, params: Record<string, string | number>): string {
     const url = new URL(this.baseUrl + path);
     for (const [k, v] of Object.entries(params)) {
       url.searchParams.set(k, String(v));
     }
     url.searchParams.set('token', this.apiKey);
     return url.toString();
-  }
-}
-
-export class NotImplementedError extends Error {
-  constructor(method: string) {
-    super(`${method} is not implemented yet (Sprint 0 stub).`);
-    this.name = 'NotImplementedError';
   }
 }
