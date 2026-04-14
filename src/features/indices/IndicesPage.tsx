@@ -35,7 +35,7 @@ export function IndicesPage() {
           </p>
         </div>
         <span className="rounded-full border border-slate-700 px-2 py-0.5 text-xs text-slate-400">
-          live · Finnhub · polls every 10s
+          live · Finnhub · polls every 15s
         </span>
       </header>
 
@@ -50,7 +50,12 @@ export function IndicesPage() {
         </div>
       )}
 
-      <QuoteTable rows={rows} />
+      <QuoteTable
+        rows={rows}
+        showFilter
+        showSparkline
+        defaultSort={{ key: 'changePct', dir: 'desc' }}
+      />
     </section>
   );
 }

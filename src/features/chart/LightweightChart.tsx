@@ -116,12 +116,13 @@ function StatusLine({ status }: { status: Status }) {
   if (status === 'fallback') {
     return (
       <p className="text-xs text-amber-400/80">
-        Historical candles require a premium Finnhub plan. Showing deterministic
-        demo data as a placeholder.
+        Historical candles unavailable — set{' '}
+        <code className="font-mono">VITE_TWELVE_DATA_API_KEY</code> for real
+        data. Showing deterministic demo as a placeholder.
       </p>
     );
   }
-  return <p className="text-xs text-slate-500">Daily candles · Finnhub</p>;
+  return <p className="text-xs text-slate-500">Daily candles · Twelve Data</p>;
 }
 
 function toChartData(candles: Candle[]) {

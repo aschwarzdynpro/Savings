@@ -29,8 +29,11 @@ cd savings
 
 # 2. Environment
 cp .env.example .env.local
-# edit .env.local and set VITE_FINNHUB_API_KEY=<your-key>
-# get a free key at https://finnhub.io/register
+# edit .env.local:
+#   VITE_FINNHUB_API_KEY=<required — live quotes & search>
+#   VITE_TWELVE_DATA_API_KEY=<optional — historical candles & sparklines>
+# get free keys at https://finnhub.io/register and
+# https://twelvedata.com/pricing
 
 # 3. Install & run
 npm install

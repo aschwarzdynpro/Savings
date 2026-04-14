@@ -63,21 +63,31 @@ the endpoint is premium-gated).
 
 ---
 
-## Sprint 2 — Live Top 50 (Tab 3)
+## Sprint 2 — Live Top 50 (Tab 3) ✅
 
 **Goal**: Tab 3 shows real-time quotes for the top 50 mega-caps with
 sort/filter and sparklines.
 
-- [ ] Extract shared `QuoteRow` component (Indices + Top 50)
-- [ ] Sortable columns: symbol, name, price, %chg, market cap, volume
-- [ ] Client-side filter input
-- [ ] Mini sparkline per row (7d) via `useCandles`
-- [ ] Batch quote fetching with React Query parallel queries + throttle
-- [ ] Document rate-limit budget per tab
-- [ ] Add market cap source (may need a second API or curated static)
+- [x] Shared `QuoteRow` contract (already extracted in Sprint 1)
+- [x] Sortable columns: symbol, name, price, %chg, market cap
+- [x] Client-side filter input (symbol + name, case-insensitive)
+- [x] Mini sparkline per row (7d) via `useSparkline` → Twelve Data
+- [x] Batch quote fetching through parallel React Query queries
+- [x] Provider-level throttling (sliding-window limiter,
+      Finnhub 55/60s, Twelve Data 7/60s)
+- [x] Rate-limit budget documented in `MEMORY.md` §4
+- [x] Market cap source: curated static list in `src/data/top50.ts`
+      (Finnhub `/stock/profile2` deferred to a future sprint)
+- [x] Secondary provider **Twelve Data** added for historical candles
+      (bypasses Finnhub's premium-only `/stock/candle`). Optional —
+      without a Twelve Data key sparklines are hidden and the chart
+      modal falls back to demo data.
+- [x] `CompositeProvider` routes quotes/search to Finnhub and candles
+      to Twelve Data.
 
-**DoD**: Top 50 tab shows live data with sparklines and sort/filter; page
-remains responsive under continuous polling.
+**DoD**: Top 50 tab shows live quotes, sortable columns, filter and
+sparklines; Indices tab gained the same sparkline + filter + sort UX;
+both stay within the free-tier rate-limit budget.
 
 ---
 

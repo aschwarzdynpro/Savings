@@ -61,6 +61,36 @@ Repository: `aschwarzdynpro/savings` · Dev branch: `claude/trading-dashboard-ap
 
 ## 4. Provider details
 
+The app uses a `CompositeProvider` (`src/services/market-data/composite.ts`)
+that routes calls to the best-fit adapter:
+
+| Call             | Adapter            | Notes                               |
+| ---------------- | ------------------ | ----------------------------------- |
+| `getQuote`       | Finnhub            | fast, 60 req/min free tier          |
+| `searchSymbols`  | Finnhub            | wired in Sprint 3                   |
+| `getCandles`     | Twelve Data*       | *if `VITE_TWELVE_DATA_API_KEY` set  |
+|                  | Finnhub (fallback) | free tier throws 403 → UI demo-data |
+
+Every adapter holds its own `SlidingWindowLimiter`
+(`src/services/market-data/throttle.ts`). The limiter smooths bursts so
+React Query poll cycles never exceed the provider's free-tier budget.
+
+### Rate-limit budget (per tab, worst case)
+
+| Tab     | Symbols | Poll   | req/min | Notes                          |
+| ------- | ------- | ------ | ------- | ------------------------------ |
+| Indices | 16      | 15 s   | 64      | Throttler caps at 55/min       |
+| Top 50  | 50      | 60 s   | 50      | Comfortably under 55/min cap   |
+
+Only the active tab polls (React Query un-subscribes on unmount), so the
+two tabs never run simultaneously. When the browser tab is hidden,
+`refetchIntervalInBackground: false` pauses polling altogether.
+
+Sparklines use a separate Twelve Data budget (7 req/min limiter, 60 min
+`staleTime`, no polling). A fresh Top 50 load issues 50 sparkline
+requests which the throttler trickles in over ~7 min; subsequent mounts
+are served from React Query cache for an hour.
+
 ### Finnhub
 
 - Docs: https://finnhub.io/docs/api
@@ -106,9 +136,23 @@ Repository: `aschwarzdynpro/savings` · Dev branch: `claude/trading-dashboard-ap
 - **Rate-limit strategy**: `429` → typed error, React Query `retry: 1`.
   No exponential backoff yet (good enough at 10 s polling). Upgrade when
   Top 50 goes live in Sprint 2.
-- **Polling**: `refetchInterval: 10_000`, `refetchIntervalInBackground:
-  false` — when the tab is hidden, React Query pauses polling
-  automatically, which keeps us well under the 60 req/min budget.
+- **Polling**: `refetchIntervalInBackground: false` — React Query pauses
+  polling when the browser tab is hidden. See §4 rate-limit budget for
+  the per-tab numbers.
+
+### Twelve Data
+
+- Docs: https://twelvedata.com/docs
+- Auth: `?apikey=…` query param
+- Free tier: 800 credits/day, 8 credits/minute
+- Env var: `VITE_TWELVE_DATA_API_KEY` (optional — app degrades gracefully
+  without it)
+- Adapter: `src/services/market-data/twelvedata.ts`
+- Endpoint used: `GET /time_series?symbol=…&interval=1day&start_date=…&end_date=…`
+- **Why it exists**: Finnhub's free tier blocks `/stock/candle`; Twelve
+  Data's `/time_series` covers the same use case for free.
+- Used for: chart-modal candles, Top 50 / Indices sprint 7-day sparklines.
+- Throttled at 7 req/min to stay under the 8/min free-tier cap.
 
 ## 5. Conventions
 
@@ -147,24 +191,26 @@ npm run preview                   # serve dist/ locally
 
 - **Sprint 0 — Foundation**: ✅ done
 - **Sprint 1 — Live Indices**: ✅ done
-- **Sprint 2 — Live Top 50**: ⏭ next
-- **Sprint 3 — Global Search + Detail**: pending
+- **Sprint 2 — Live Top 50**: ✅ done
+- **Sprint 3 — Global Search + Detail**: ⏭ next
 - **Sprint 4 — Configurable Dashboard**: pending
 - **Sprint 5+ — Expansion Backlog**: see `PLAN.md`
 
 ## 8. Known issues / TODOs
 
-- `/stock/candle` is premium on the Finnhub free tier → chart modal falls
-  back to deterministic demo data with a visible "fallback" label. Sprint
-  2 candidates for real candles: Twelve Data (800 req/day free), Polygon
-  basic, Yahoo Finance via CORS proxy.
-- Market-cap data for Top 50 is not in `/quote` — use `/stock/profile2`
-  or keep the curated static list.
-- Top 50 still renders mock data; 60 parallel live quotes would blow the
-  free-tier budget. Sprint 2 will add a throttled polling scheduler.
-- No tests yet. Consider Vitest + React Testing Library starting Sprint 2.
-- No global error boundary — React Query handles per-query errors
-  inline; good enough until we ship portfolio / alerts features.
+- **Twelve Data is optional**. Without the key, sparklines are hidden
+  and the chart modal still falls back to deterministic demo candles.
+- **Market cap** for Top 50 is still a curated static list. Swap for
+  Finnhub `/stock/profile2` (or another source) when needed.
+- **Volume column** is not yet shown in `QuoteTable`. Data is already in
+  the `Quote` shape; add a column when useful.
+- **No tests yet.** Vitest + React Testing Library starting Sprint 3.
+- **No global error boundary** — React Query handles per-query errors
+  inline; good enough until portfolio/alerts ship.
+- **Sparkline first load is slow** for Top 50: the Twelve Data limiter
+  trickles 50 requests through at 7/min (~7 minutes). The `useSparkline`
+  cache (60 min stale) keeps repeat loads instant. Batch-mode (up to 8
+  symbols per `/time_series` call) is a possible optimization.
 
 ## 9. Glossary (for future context)
 

@@ -6,6 +6,7 @@ import type {
   SymbolSearchResult,
 } from './types';
 import { AuthError, NoDataError, RateLimitError } from './errors';
+import { SlidingWindowLimiter } from './throttle';
 
 interface FinnhubQuote {
   c: number; // current price
@@ -50,6 +51,13 @@ export class FinnhubProvider implements MarketDataProvider {
   readonly name = 'finnhub';
 
   private readonly baseUrl = 'https://finnhub.io/api/v1';
+
+  /**
+   * Finnhub free tier allows 60 req/min. We leave a small safety buffer
+   * so bursts from page loads and concurrent React Query polls don't
+   * push us over the edge.
+   */
+  private readonly limiter = new SlidingWindowLimiter(55, 60_000);
 
   constructor(private readonly apiKey: string) {}
 
@@ -124,6 +132,8 @@ export class FinnhubProvider implements MarketDataProvider {
     if (!this.apiKey) {
       throw new AuthError('Missing VITE_FINNHUB_API_KEY');
     }
+
+    await this.limiter.acquire();
 
     const url = this.buildUrl(path, params);
     const res = await fetch(url);
