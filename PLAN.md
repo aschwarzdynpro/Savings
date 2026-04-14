@@ -91,21 +91,26 @@ both stay within the free-tier rate-limit budget.
 
 ---
 
-## Sprint 3 — Global Search + Detail View
+## Sprint 3 — Global Search + Detail View ✅
 
-**Goal**: Search any symbol, open a proper detail view (not just modal).
+**Goal**: Search any symbol, open a proper detail view (not just a modal).
 
-- [ ] Implement `FinnhubProvider.searchSymbols(query)`
-- [ ] `GlobalSearch` with debounce (300ms) + dropdown results
-- [ ] Keyboard nav in dropdown (arrow keys + enter)
-- [ ] New route `/symbol/:symbol` with full detail view
-- [ ] Timeframe switcher: 1D / 5D / 1M / 6M / 1Y / 5Y / All
-- [ ] Quote header: price, change, day range, 52w range, volume
-- [ ] Favorites (localStorage) — star icon in detail view
-- [ ] Recently viewed list (localStorage)
+- [x] `FinnhubProvider.searchSymbols(query)` (already wired in Sprint 1)
+- [x] `GlobalSearch` with debounce (300 ms) + dropdown results
+- [x] Keyboard nav in dropdown (↑ / ↓ / Enter / Esc, outside-click close)
+- [x] New route `/symbol/:symbol` with a full-page detail view
+- [x] Timeframe switcher: 1D / 5D / 1M / 6M / 1Y / 5Y / All
+- [x] Quote header: price, change, open, prev close, day high, day low
+      *(52-week range + volume deferred — see §8 in MEMORY.md)*
+- [x] Favorites stored in localStorage via `zustand/persist`
+      (star icon in the detail header)
+- [x] Recently viewed list stored in localStorage (LRU, max 20)
+- [x] Row clicks on all quote tables now navigate to the detail view
+      (chart modal removed entirely — files purged)
 
 **DoD**: Any supported symbol can be searched and opened; detail view has
-working timeframe switcher and favorite toggle.
+a working timeframe switcher, favorite toggle, and writes to recently
+viewed on mount.
 
 ---
 

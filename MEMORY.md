@@ -154,6 +154,27 @@ are served from React Query cache for an hour.
 - Used for: chart-modal candles, Top 50 / Indices sprint 7-day sparklines.
 - Throttled at 7 req/min to stay under the 8/min free-tier cap.
 
+### Routes
+
+| Path               | Component        | Notes                              |
+| ------------------ | ---------------- | ---------------------------------- |
+| `/dashboard`       | `DashboardPage`  | placeholder until Sprint 4         |
+| `/indices`         | `IndicesPage`    | live 16 ETF proxies                |
+| `/top50`           | `Top50Page`      | live 50 mega-caps                  |
+| `/symbol/:symbol`  | `DetailPage`     | full chart + quote header          |
+
+`DetailPage` accepts an optional `state: { name }` via router navigation
+so list/search entry points can render a friendly name before the live
+quote resolves.
+
+### Persisted client state
+
+- **Favorites** — `store/favorites-store.ts`, localStorage key
+  `trading-dashboard:favorites`, zustand `persist` middleware.
+- **Recently viewed** — `store/recently-viewed-store.ts`, localStorage
+  key `trading-dashboard:recently-viewed`, LRU capped at 20 entries.
+  `DetailPage` calls `touch()` on mount.
+
 ## 5. Conventions
 
 - **TypeScript strict** on (`"strict": true` in `tsconfig.json`).
@@ -192,25 +213,29 @@ npm run preview                   # serve dist/ locally
 - **Sprint 0 — Foundation**: ✅ done
 - **Sprint 1 — Live Indices**: ✅ done
 - **Sprint 2 — Live Top 50**: ✅ done
-- **Sprint 3 — Global Search + Detail**: ⏭ next
-- **Sprint 4 — Configurable Dashboard**: pending
+- **Sprint 3 — Global Search + Detail**: ✅ done
+- **Sprint 4 — Configurable Dashboard**: ⏭ next
 - **Sprint 5+ — Expansion Backlog**: see `PLAN.md`
 
 ## 8. Known issues / TODOs
 
 - **Twelve Data is optional**. Without the key, sparklines are hidden
-  and the chart modal still falls back to deterministic demo candles.
+  and the detail chart falls back to deterministic demo candles.
 - **Market cap** for Top 50 is still a curated static list. Swap for
   Finnhub `/stock/profile2` (or another source) when needed.
-- **Volume column** is not yet shown in `QuoteTable`. Data is already in
-  the `Quote` shape; add a column when useful.
-- **No tests yet.** Vitest + React Testing Library starting Sprint 3.
-- **No global error boundary** — React Query handles per-query errors
-  inline; good enough until portfolio/alerts ship.
+- **Quote header** does not show 52-week range or volume yet —
+  neither field is in Finnhub `/quote`. Sprint 4+ candidate: pull
+  `/stock/metric?metric=all` (free for US stocks) for 52w high/low,
+  and use the last candle's volume as the volume fallback.
+- **Volume column** is not yet shown in `QuoteTable`. Data is already
+  in the `Quote` shape (optional); add a column when useful.
 - **Sparkline first load is slow** for Top 50: the Twelve Data limiter
   trickles 50 requests through at 7/min (~7 minutes). The `useSparkline`
   cache (60 min stale) keeps repeat loads instant. Batch-mode (up to 8
   symbols per `/time_series` call) is a possible optimization.
+- **No tests yet.** Vitest + React Testing Library starting Sprint 4+.
+- **No global error boundary** — React Query handles per-query errors
+  inline; good enough until portfolio/alerts ship.
 
 ## 9. Glossary (for future context)
 

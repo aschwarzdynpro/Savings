@@ -2,7 +2,6 @@ import { Outlet } from 'react-router-dom';
 import { LineChart } from 'lucide-react';
 import { TabNav } from './TabNav';
 import { GlobalSearch } from '@/components/search/GlobalSearch';
-import { ChartModalHost } from '@/features/chart/ChartModalHost';
 
 export function AppShell() {
   return (
@@ -28,10 +27,8 @@ export function AppShell() {
       </main>
 
       <footer className="border-t border-slate-800 px-4 py-3 text-center text-xs text-slate-500">
-        Sprint 0 · Foundation · Data: mock · See <code>PLAN.md</code> for the roadmap
+        Trading Dashboard · See <code>PLAN.md</code> for the sprint roadmap
       </footer>
-
-      <ChartModalHost />
     </div>
   );
 }

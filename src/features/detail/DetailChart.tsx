@@ -1,37 +1,40 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
-  createChart,
   ColorType,
+  createChart,
   type IChartApi,
   type ISeriesApi,
   type UTCTimestamp,
 } from 'lightweight-charts';
-import { useCandles } from '@/hooks/useMarketData';
 import type { Candle } from '@/services/market-data';
+import { hasCandleProvider } from '@/services/market-data';
+import { useCandles } from '@/hooks/useMarketData';
+import { timeframeToRange, type Timeframe } from './timeframes';
 
 interface Props {
   symbol: string;
-  /** Number of days of history to fetch. */
-  days?: number;
+  timeframe: Timeframe;
   height?: number;
 }
 
-type Status = 'loading' | 'live' | 'fallback';
+type Status = 'loading' | 'live' | 'fallback' | 'empty';
 
-export function LightweightChart({ symbol, days = 180, height = 400 }: Props) {
+export function DetailChart({ symbol, timeframe, height = 480 }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
   const chartRef = useRef<IChartApi | null>(null);
   const seriesRef = useRef<ISeriesApi<'Candlestick'> | null>(null);
   const [status, setStatus] = useState<Status>('loading');
 
-  const { from, to } = useMemo(() => {
-    const now = Math.floor(Date.now() / 1000);
-    return { from: now - days * 24 * 60 * 60, to: now };
-  }, [days]);
+  const { resolution, from, to } = timeframeToRange(timeframe);
+  const { data: candles, isLoading, isError } = useCandles(
+    symbol,
+    resolution,
+    from,
+    to,
+  );
+  const hasProvider = hasCandleProvider();
 
-  const { data: candles, isLoading, isError } = useCandles(symbol, 'D', from, to);
-
-  // Create the chart once (and whenever height changes).
+  // Create the chart once (re-create when height changes).
   useEffect(() => {
     if (!containerRef.current) return;
 
@@ -45,7 +48,7 @@ export function LightweightChart({ symbol, days = 180, height = 400 }: Props) {
         horzLines: { color: '#1f2937' },
       },
       rightPriceScale: { borderColor: '#1f2937' },
-      timeScale: { borderColor: '#1f2937', timeVisible: true },
+      timeScale: { borderColor: '#1f2937', timeVisible: true, secondsVisible: false },
       width: containerRef.current.clientWidth,
       height,
     });
@@ -76,7 +79,7 @@ export function LightweightChart({ symbol, days = 180, height = 400 }: Props) {
     };
   }, [height]);
 
-  // Push data into the series whenever it changes / the fetch resolves.
+  // Feed data into the series whenever the query resolves.
   useEffect(() => {
     if (!seriesRef.current || !chartRef.current) return;
 
@@ -92,24 +95,30 @@ export function LightweightChart({ symbol, days = 180, height = 400 }: Props) {
       return;
     }
 
-    // Free-tier fallback: /stock/candle is premium on Finnhub → we show a
-    // deterministic demo series so the modal still has something to render.
-    if (isError || candles) {
-      seriesRef.current.setData(toChartData(generateDemoCandles(symbol, days)));
+    if (!hasProvider) {
+      seriesRef.current.setData(toChartData(generateDemoCandles(symbol, 180)));
       chartRef.current.timeScale().fitContent();
       setStatus('fallback');
+      return;
     }
-  }, [candles, isError, isLoading, symbol, days]);
+
+    if (isError) {
+      seriesRef.current.setData([]);
+      setStatus('empty');
+    }
+  }, [candles, isError, isLoading, hasProvider, symbol, timeframe]);
 
   return (
-    <div className="space-y-2">
+    <div className="card overflow-hidden">
       <div ref={containerRef} className="w-full" style={{ height }} />
-      <StatusLine status={status} />
+      <div className="border-t border-slate-800 px-4 py-2">
+        <StatusLine status={status} timeframe={timeframe} />
+      </div>
     </div>
   );
 }
 
-function StatusLine({ status }: { status: Status }) {
+function StatusLine({ status, timeframe }: { status: Status; timeframe: Timeframe }) {
   if (status === 'loading') {
     return <p className="text-xs text-slate-500">Loading candles…</p>;
   }
@@ -118,11 +127,22 @@ function StatusLine({ status }: { status: Status }) {
       <p className="text-xs text-amber-400/80">
         Historical candles unavailable — set{' '}
         <code className="font-mono">VITE_TWELVE_DATA_API_KEY</code> for real
-        data. Showing deterministic demo as a placeholder.
+        data. Showing deterministic demo series.
       </p>
     );
   }
-  return <p className="text-xs text-slate-500">Daily candles · Twelve Data</p>;
+  if (status === 'empty') {
+    return (
+      <p className="text-xs text-slate-500">
+        No data for this symbol on the selected timeframe.
+      </p>
+    );
+  }
+  return (
+    <p className="text-xs text-slate-500">
+      {timeframe} · Twelve Data
+    </p>
+  );
 }
 
 function toChartData(candles: Candle[]) {

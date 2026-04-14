@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import clsx from 'clsx';
 import { AlertCircle, ArrowDown, ArrowUp, ChevronsUpDown, Search } from 'lucide-react';
-import { useChartModalStore } from '@/store/chart-modal-store';
+import { useNavigate } from 'react-router-dom';
 import { Sparkline } from './Sparkline';
 
 /**
@@ -58,7 +58,9 @@ export function QuoteTable({
   showSparkline = false,
   defaultSort,
 }: Props) {
-  const openChart = useChartModalStore((s) => s.open);
+  const navigate = useNavigate();
+  const openSymbol = (symbol: string, name: string) =>
+    navigate(`/symbol/${encodeURIComponent(symbol)}`, { state: { name } });
   const [filter, setFilter] = useState('');
   const [sortKey, setSortKey] = useState<SortKey>(
     defaultSort?.key ?? (showMarketCap ? 'marketCap' : 'symbol'),
@@ -178,9 +180,7 @@ export function QuoteTable({
                 <tr
                   key={row.symbol}
                   className="table-row-hover"
-                  onClick={() =>
-                    openChart({ symbol: row.symbol, name: row.name })
-                  }
+                  onClick={() => openSymbol(row.symbol, row.name)}
                 >
                   <td className="px-4 py-3 font-mono font-semibold text-white">
                     {row.symbol}

@@ -77,3 +77,18 @@ export function useSparkline(symbol: string, days = 7) {
     isError: query.isError,
   };
 }
+
+/**
+ * Symbol search — debounce the `query` at the call site via `useDebounced`.
+ * Runs only when `query` has at least one non-whitespace character.
+ */
+export function useSymbolSearch(query: string) {
+  const trimmed = query.trim();
+  return useQuery({
+    queryKey: ['search', trimmed],
+    queryFn: () => getMarketData().searchSymbols(trimmed),
+    enabled: trimmed.length >= 1,
+    staleTime: 5 * 60_000,
+    retry: 0,
+  });
+}
